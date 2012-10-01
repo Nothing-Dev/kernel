@@ -54,6 +54,26 @@
 
 #define MSMFB_OVERLAY_3D       _IOWR(MSMFB_IOCTL_MAGIC, 147, \
 						struct msmfb_overlay_3d)
+/* add the code for dynamic gamma function  */
+#ifdef CONFIG_FB_DYNAMIC_GAMMA
+#define MSMFB_DYNAMIC_GAMMA       _IOWR(MSMFB_IOCTL_MAGIC, 147, \
+						 unsigned  int)
+#endif
+
+#ifdef CONFIG_FB_AUTO_CABC
+#define MSMFB_AUTO_CABC           _IOWR(MSMFB_IOCTL_MAGIC, 148, struct msmfb_cabc_config)
+#endif
+
+#define MDP_IMGTYPE2_START 0x10000
+
+#ifdef CONFIG_FB_DYNAMIC_GAMMA
+enum danymic_gamma_mode {
+    GAMMA25 = 0,
+    GAMMA22,
+    HIGH_LIGHT,
+    LOW_LIGHT,
+ };
+#endif
 
 #define MSMFB_MIXER_INFO       _IOWR(MSMFB_IOCTL_MAGIC, 148, \
 						struct msmfb_mixer_info_req)
@@ -71,6 +91,10 @@
 #define MSMFB_OVERLAY_VSYNC_CTRL _IOW(MSMFB_IOCTL_MAGIC, 160, unsigned int)
 #define MSMFB_VSYNC_CTRL  _IOW(MSMFB_IOCTL_MAGIC, 161, unsigned int)
 #define MSMFB_BUFFER_SYNC  _IOW(MSMFB_IOCTL_MAGIC, 162, struct mdp_buf_sync)
+#define MSMFB_METADATA_SET  _IOW(MSMFB_IOCTL_MAGIC, 162, struct msmfb_metadata)
+#define MSMFB_OVERLAY_COMMIT      _IOW(MSMFB_IOCTL_MAGIC, 163, unsigned int)
+#define MSMFB_DISPLAY_COMMIT      _IOW(MSMFB_IOCTL_MAGIC, 164, \
+						struct mdp_display_commit)
 #define FB_TYPE_3D_PANEL 0x10101010
 #define MDP_IMGTYPE2_START 0x10000
 #define MSMFB_DRIVER_VERSION	0xF9E8D701
@@ -138,7 +162,6 @@ enum {
 #define MDP_DITHER 0x8
 #define MDP_BLUR 0x10
 #define MDP_BLEND_FG_PREMULT 0x20000
-#define MDP_IS_FG 0x40000
 #define MDP_DEINTERLACE 0x80000000
 #define MDP_SHARPENING  0x40000000
 #define MDP_NO_DMA_BARRIER_START	0x20000000
@@ -321,13 +344,10 @@ struct mdp_histogram {
 
 
 /*
-
 	mdp_block_type defines the identifiers for each of pipes in MDP 4.3
-
 	MDP_BLOCK_RESERVED is provided for backward compatibility and is
 	deprecated. It corresponds to DMA_P. So MDP_BLOCK_DMA_P should be used
 	instead.
-
 */
 
 enum {
@@ -482,12 +502,25 @@ struct msmfb_mdp_pp {
 	} data;
 };
 
-
-struct mdp_page_protection {
-	uint32_t page_protection;
+enum {
+	metadata_op_none,
+	metadata_op_base_blend,
+	metadata_op_max
 };
 
-#define MDP_MAX_FENCE_FD	4
+struct mdp_blend_cfg {
+	uint32_t is_premultiplied;
+};
+
+struct msmfb_metadata {
+	uint32_t op;
+	uint32_t flags;
+	union {
+		struct mdp_blend_cfg blend_cfg;
+	} data;
+};
+
+#define MDP_MAX_FENCE_FD	10
 
 struct mdp_buf_sync {
 	uint32_t flags;
@@ -496,6 +529,37 @@ struct mdp_buf_sync {
 	int *rel_fen_fd;
 };
 
+#ifdef CONFIG_FB_AUTO_CABC
+enum cabc_mode {
+    CABC_MODE_OFF,
+    CABC_MODE_UI,
+    CABC_MODE_STILL,
+    CABC_MODE_MOVING,
+};
+
+struct msmfb_cabc_config {
+    uint32_t mode;
+    uint32_t dimming_on;
+    uint32_t mov_det_on;
+};
+#endif
+struct mdp_buf_fence {
+	uint32_t flags;
+	uint32_t acq_fen_fd_cnt;
+	int acq_fen_fd[MDP_MAX_FENCE_FD];
+	int rel_fen_fd[MDP_MAX_FENCE_FD];
+};
+
+struct mdp_display_commit {
+	uint32_t flags;
+	uint32_t wait_for_finish;
+	struct fb_var_screeninfo var;
+	struct mdp_buf_fence buf_fence;
+};
+
+struct mdp_page_protection {
+	uint32_t page_protection;
+};
 
 struct mdp_mixer_info {
 	int pndx;
