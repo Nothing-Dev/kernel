@@ -387,8 +387,6 @@ RETRY_MIPI_DSI_ON:
 #if defined(CONFIG_FB_MSM_MIPI_HX8369B_WVGA_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_NT35510_CMD_WVGA_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_HX8357_CMD_SMD_HVGA_PT_PANEL)
 	mipi_dsi_op_mode_config(mipi->mode); // call this function before panel_next_on 
 #endif
-#ifdef CONFIG_FB_MSM_MIPI_HX8369B_WVGA_PT_PANEL
-	ret = panel_next_on(pdev);
 
 	if(!ret && retry_count > 0) {
 		retry_count--;
@@ -404,7 +402,8 @@ RETRY_MIPI_DSI_ON:
 
 	ret = 0;
 #else
-	ret = panel_next_on(pdev);
+		if (mfd->op_enable)
+		ret = panel_next_on(pdev);
 #endif
 #if !defined(CONFIG_FB_MSM_MIPI_HX8369B_WVGA_PT_PANEL) && !defined(CONFIG_FB_MSM_MIPI_NT35510_CMD_WVGA_PT_PANEL) && !defined(CONFIG_FB_MSM_MIPI_HX8357_CMD_SMD_HVGA_PT_PANEL)
 	mipi_dsi_op_mode_config(mipi->mode);
