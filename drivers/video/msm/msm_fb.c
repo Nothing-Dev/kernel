@@ -882,15 +882,6 @@ static struct platform_driver msm_fb_driver = {
 		   },
 };
 
-#if defined(CONFIG_HAS_EARLYSUSPEND) && defined(CONFIG_FB_MSM_MDP303)
-static void memset32_io(u32 __iomem *_ptr, u32 val, size_t count)
-{
-	count >>= 2;
-	while (count--)
-		writel(val, _ptr++);
-}
-#endif
-
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #ifdef CONFIG_FB_MSM_MIPI_DSI_WHITESCREEN
 boolean wakeupflag = TRUE ; 
@@ -905,44 +896,7 @@ static void msmfb_early_suspend(struct early_suspend *h)
 						early_suspend);
 	struct msm_fb_panel_data *pdata = NULL;
 
-#ifdef CONFIG_FB_MSM_MIPI_DSI_WHITESCREEN
-	while(waitcount){
-		if (!mfd->bl_level){
-			sleepflag = 1;
-			break;
-		}
-		msleep(20);
-		waitcount--;
-	}
-	if(sleepflag){
-		msm_fb_suspend_sub(mfd);
-		wakeupflag = TRUE;
-	}
-	else {
-		wakeupflag = FALSE;
-	}
-#else
 	msm_fb_suspend_sub(mfd);
-#endif
-
-#if defined(CONFIG_FB_MSM_MIPI_HX8369B_WVGA_PT_PANEL)
-#if defined(CONFIG_FB_MSM_MDP303)
-	/*
-	* For MDP with overlay, set framebuffer with black pixels
-	* to show black screen on HDMI.
-	*/
-	struct fb_info *fbi = mfd->fbi;
-	switch (mfd->fbi->var.bits_per_pixel) {
-	case 32:
-		memset32_io((void *)fbi->screen_base, 0xFF000000,
-							fbi->fix.smem_len);
-		break;
-	default:
-		memset32_io((void *)fbi->screen_base, 0x00, fbi->fix.smem_len);
-		break;
-	}
-#endif
-#endif
 
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 	if (hdmi_prim_display &&
