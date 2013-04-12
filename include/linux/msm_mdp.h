@@ -308,6 +308,28 @@ struct msmfb_writeback_data {
 	struct msmfb_img img;
 };
 
+<<<<<<< HEAD
+=======
+struct dpp_ctrl {
+	/*
+	 *'sharp_strength' has inputs = -128 <-> 127
+	 *  Increasingly positive values correlate with increasingly sharper
+	 *  picture. Increasingly negative values correlate with increasingly
+	 *  smoothed picture.
+	 */
+	int8_t sharp_strength;
+	int8_t hsic_params[NUM_HSIC_PARAM];
+};
+
+enum {
+	BLEND_OP_NOT_DEFINED = 0,
+	BLEND_OP_OPAQUE,
+	BLEND_OP_PREMULTIPLIED,
+	BLEND_OP_COVERAGE,
+	BLEND_OP_MAX,
+};
+
+>>>>>>> b9f82be... msm: display: plane alpha support
 struct mdp_overlay {
 	struct msmfb_img src;
 	struct mdp_rect src_rect;
@@ -316,6 +338,7 @@ struct mdp_overlay {
 	uint32_t is_fg;		/* control alpha & transp */
 	uint32_t alpha;
 	uint32_t transp_mask;
+	uint32_t blend_op;
 	uint32_t flags;
 	uint32_t id;
 	uint32_t user_data[8];
