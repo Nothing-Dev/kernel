@@ -220,6 +220,12 @@ static int audpcm_in_enable(struct audio_in *audio)
 	rc = audmgr_enable(&audio->audmgr, &cfg);
 	if (rc < 0)
 		return rc;
+	}
+	/*update aurec session info in audpreproc layer*/
+        audio->session_info.session_id = audio->enc_id;
+        audio->session_info.sampling_freq =
+                        convert_samp_index(audio->samp_rate);
+        audpreproc_update_audrec_info(&audio->session_info);
 
 	if (audpreproc_enable(audio->enc_id, &audpre_dsp_event, audio)) {
 		MM_ERR("msm_adsp_enable(audpreproc) failed\n");
@@ -236,12 +242,6 @@ static int audpcm_in_enable(struct audio_in *audio)
 
 	audio->enabled = 1;
 	audpcm_in_dsp_enable(audio, 1);
-
-	/*update aurec session info in audpreproc layer*/
-	audio->session_info.session_id = audio->enc_id;
-	audio->session_info.sampling_freq =
-			convert_samp_index(audio->samp_rate);
-	audpreproc_update_audrec_info(&audio->session_info);
 
 	return 0;
 }
