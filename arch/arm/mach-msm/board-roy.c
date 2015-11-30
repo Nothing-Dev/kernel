@@ -157,6 +157,23 @@ int wlan_setup_ldo_33v(int input_flag, int on);
 #define GPIO_PROX_INT 29
 #endif
 
+#ifdef CONFIG_ION_MSM
+#define MSM_ION_HEAP_NUM	5
+static struct platform_device ion_dev;
+static int msm_ion_camera_size;
+static int msm_ion_audio_size;
+static int msm_ion_sf_size;
+static int msm_ion_camera_size_carving;
+#endif
+#endif
+
+#define CAMERA_HEAP_BASE        0x0
+#ifdef CONFIG_CMA
+#define CAMERA_HEAP_TYPE	ION_HEAP_TYPE_DMA
+#else
+#define CAMERA_HEAP_TYPE	ION_HEAP_TYPE_CARVEOUT
+#endif
+
 
 static struct sec_jack_zone jack_zones[] = {
 	[0] = {
@@ -2417,6 +2434,8 @@ static void __init reserve_ion_memory(void)
 	msm7x27a_reserve_table[MEMTYPE_EBI1].size += msm_ion_camera_size;
 	msm7x27a_reserve_table[MEMTYPE_EBI1].size += msm_ion_audio_size;
 	msm7x27a_reserve_table[MEMTYPE_EBI1].size += msm_ion_sf_size;
+	msm7x27a_reserve_table[MEMTYPE_EBI1].size +=
+		msm_ion_camera_size_carving;
 #endif
 }
 
@@ -2450,6 +2469,13 @@ static void __init msm8625_reserve(void)
 	memblock_remove(MSM8625_SECONDARY_PHYS, SZ_8);
 	memblock_remove(MSM8625_WARM_BOOT_PHYS, SZ_32);
 	memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
+#ifdef CONFIG_CMA
+	dma_declare_contiguous(
+			&ion_cma_device.dev,
+			msm_ion_camera_size,
+			CAMERA_HEAP_BASE,
+			0x26000000);
+#endif
 }
 
 static void __init msm7x27a_device_i2c_init(void)
