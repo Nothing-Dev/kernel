@@ -1943,98 +1943,6 @@ void mdp4_mixer_blend_cfg(int mixer)
 	}
 }
 
-static void mdp4_set_blend_by_op(struct mdp4_overlay_pipe *s_pipe,
-					struct mdp4_overlay_pipe *d_pipe,
-					int alpha_drop,
-					struct blend_cfg *blend)
-{
-	int d_alpha, s_alpha;
-	u32 op;
-
-	d_alpha = d_pipe->alpha_enable;
-	s_alpha = s_pipe->alpha_enable;
-	/* base on fg's alpha */
-	blend->fg_alpha = s_pipe->alpha;
-	blend->bg_alpha = 0x0ff - s_pipe->alpha;
-	blend->op = MDP4_BLEND_FG_ALPHA_FG_CONST |
-	MDP4_BLEND_BG_ALPHA_BG_CONST;
-	blend->co3_sel = 1; /* use fg alpha */
-	op = s_pipe->blend_op;
-	if (op == BLEND_OP_OPAQUE) {
-		blend->bg_alpha = 0;
-		blend->fg_alpha = 0xff;
-	} else if ((op == BLEND_OP_PREMULTIPLIED) &&
-			(!alpha_drop) && s_alpha) {
-		blend->op = MDP4_BLEND_FG_ALPHA_FG_CONST |
-			MDP4_BLEND_BG_INV_ALPHA |
-			MDP4_BLEND_BG_ALPHA_FG_PIXEL;
-		if (blend->fg_alpha != 0xff) {
-			blend->bg_alpha = blend->fg_alpha;
-			blend->op |= MDP4_BLEND_BG_MOD_ALPHA;
-		}
-	} else if (!alpha_drop && s_alpha) {
-		blend->op = MDP4_BLEND_FG_ALPHA_FG_PIXEL |
-			MDP4_BLEND_BG_INV_ALPHA |
-			MDP4_BLEND_BG_ALPHA_FG_PIXEL;
-		if (blend->fg_alpha != 0xff) {
-			blend->bg_alpha = blend->fg_alpha;
-			blend->op |= MDP4_BLEND_FG_MOD_ALPHA |
-				MDP4_BLEND_BG_MOD_ALPHA;
-		}
-	}
-	if (!s_alpha && d_alpha)
-		blend->co3_sel = 0;
-	pr_debug("%s: op %d bg alpha %d, fg alpha %d blend: %x\n",
-		__func__, op, blend->bg_alpha, blend->fg_alpha, blend->op);
-}
-
-static void mdp4_set_blend_by_fmt(struct mdp4_overlay_pipe *s_pipe,
-					struct mdp4_overlay_pipe *d_pipe,
-					int alpha_drop,
-					struct blend_cfg *blend)
-{
-	int ptype, d_alpha, s_alpha;
-	d_alpha = d_pipe->alpha_enable;
-	s_alpha = s_pipe->alpha_enable;
-	/* base on fg's alpha */
-	blend->bg_alpha = 0x0ff - s_pipe->alpha;
-	blend->fg_alpha = s_pipe->alpha;
-	blend->co3_sel = 1; /* use fg alpha */
-
-	if (s_pipe->is_fg) {
-		if (s_pipe->alpha == 0xff) {
-			blend->solidfill = 1;
-			blend->solidfill_pipe = d_pipe;
-		}
-	} else if (s_alpha) {
-		if (!alpha_drop) {
-			blend->op = MDP4_BLEND_BG_ALPHA_FG_PIXEL;
-			if (!(s_pipe->flags & MDP_BLEND_FG_PREMULT))
-				blend->op |=
-					MDP4_BLEND_FG_ALPHA_FG_PIXEL;
-		} else
-			blend->op = MDP4_BLEND_BG_ALPHA_FG_CONST;
-
-		blend->op |= MDP4_BLEND_BG_INV_ALPHA;
-	} else if (d_alpha) {
-		ptype = mdp4_overlay_format2type(s_pipe->src_format);
-		if (ptype == OVERLAY_TYPE_VIDEO &&
-			(!(s_pipe->flags & MDP_BACKEND_COMPOSITION))) {
-			blend->op = (MDP4_BLEND_FG_ALPHA_BG_PIXEL |
-				MDP4_BLEND_FG_INV_ALPHA);
-			if (!(s_pipe->flags & MDP_BLEND_FG_PREMULT))
-				blend->op |=
-					MDP4_BLEND_BG_ALPHA_BG_PIXEL;
-			blend->co3_sel = 0; /* use bg alpha */
-		} else {
-			/* s_pipe is rgb without alpha */
-			blend->op = (MDP4_BLEND_FG_ALPHA_FG_CONST |
-				    MDP4_BLEND_BG_ALPHA_BG_CONST);
-			blend->bg_alpha = 0;
-		}
-	}
-}
-
 /*
  * D(i+1) = Ks * S + Kd * D(i)
  */
@@ -2043,7 +1951,8 @@ void mdp4_mixer_blend_setup(int mixer)
 	struct mdp4_overlay_pipe *d_pipe;
 	struct mdp4_overlay_pipe *s_pipe;
 	struct blend_cfg *blend;
-	int i, off, alpha_drop;
+	int i, off, ptype, alpha_drop = 0;
+	int d_alpha, s_alpha;
 	unsigned char *overlay_base;
 	uint32 c0, c1, c2;
 
@@ -2063,6 +1972,7 @@ void mdp4_mixer_blend_setup(int mixer)
 		if (s_pipe == NULL) {
 			blend++;
 			d_pipe = NULL;
+			d_alpha = 0;
 			continue;
 		}
 		/* alpha channel is lost on VG pipe when using QSEED or M/N */
@@ -2073,9 +1983,10 @@ void mdp4_mixer_blend_setup(int mixer)
 			alpha_drop = 1;
 
 		d_pipe = mdp4_background_layer(mixer, s_pipe);
+		d_alpha = d_pipe->alpha_enable;
+		s_alpha = s_pipe->alpha_enable;
 		pr_debug("%s: stage=%d: bg: ndx=%d da=%d dalpha=%x "
 			"fg: ndx=%d sa=%d salpha=%x is_fg=%d alpha_drop=%d\n",
-<<<<<<< HEAD
 		 __func__, i-2, d_pipe->pipe_ndx, d_alpha, d_pipe->alpha,
 		s_pipe->pipe_ndx, s_alpha, s_pipe->alpha, s_pipe->is_fg,
 		alpha_drop);
@@ -2116,17 +2027,6 @@ void mdp4_mixer_blend_setup(int mixer)
 				blend->bg_alpha = 0;
 			}
 		}
-=======
-		__func__, i-2, d_pipe->pipe_ndx, d_pipe->alpha_enable,
-		d_pipe->alpha, s_pipe->pipe_ndx, s_pipe->alpha_enable,
-		s_pipe->alpha, s_pipe->is_fg, alpha_drop);
-		if ((s_pipe->blend_op == BLEND_OP_NOT_DEFINED) ||
-				(s_pipe->blend_op >= BLEND_OP_MAX))
-			mdp4_set_blend_by_fmt(s_pipe, d_pipe,
-					alpha_drop, blend);
-		else
-			mdp4_set_blend_by_op(s_pipe, d_pipe, alpha_drop, blend);
->>>>>>> b9f82be... msm: display: plane alpha support
 
 		if (s_pipe->transp != MDP_TRANSP_NOP) {
 			if (s_pipe->is_fg) {
@@ -2561,7 +2461,6 @@ static int mdp4_overlay_req2pipe(struct mdp_overlay *req, int mixer,
 	pipe->is_fg = req->is_fg;/* control alpha and color key */
 
 	pipe->alpha = req->alpha & 0x0ff;
-	pipe->blend_op = req->blend_op;
 
 	pipe->transp = req->transp_mask;
 
@@ -3620,6 +3519,49 @@ end:
 	return ret;
 }
 
+<<<<<<< HEAD
+=======
+int mdp4_overlay_commit(struct fb_info *info)
+{
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	int mixer;
+
+	if (mfd == NULL)
+		return -ENODEV;
+
+	if (!mfd->panel_power_on) /* suspended */
+		return -EINVAL;
+
+	mixer = mfd->panel_info.pdest;	/* DISPLAY_1 or DISPLAY_2 */
+
+	mutex_lock(&mfd->dma->ov_mutex);
+
+	mdp4_overlay_mdp_perf_upd(mfd, 1);
+
+	if (mixer == MDP4_MIXER0) {
+		if (ctrl->panel_mode & MDP4_PANEL_DSI_CMD) {
+			/* cndx = 0 */
+			mdp4_dsi_cmd_pipe_commit(0, 1);
+		} else if (ctrl->panel_mode & MDP4_PANEL_DSI_VIDEO) {
+			/* cndx = 0 */
+			mdp4_dsi_video_pipe_commit(0, 1);
+		} else if (ctrl->panel_mode & MDP4_PANEL_LCDC) {
+			/* cndx = 0 */
+			mdp4_lcdc_pipe_commit(0, 1);
+		}
+	} else if (mixer == MDP4_MIXER1) {
+		if (ctrl->panel_mode & MDP4_PANEL_DTV)
+			mdp4_dtv_pipe_commit(0, 1);
+	}
+
+	mdp4_overlay_mdp_perf_upd(mfd, 0);
+
+	mutex_unlock(&mfd->dma->ov_mutex);
+
+	return 0;
+}
+
+>>>>>>> 35b86ef... msm_fb: display: consolidate overlay_commit and
 struct msm_iommu_ctx {
 	char *name;
 	int  domain;
