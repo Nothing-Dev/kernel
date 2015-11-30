@@ -65,7 +65,8 @@
 #include "board-msm7627a.h"
 
 #define PMEM_KERNEL_EBI1_SIZE	0x3A000
-#define MSM_PMEM_AUDIO_SIZE	0x1F4000
+#define MSM_PMEM_AUDIO_SIZE	0xF0000
+#define BOOTLOADER_BASE_ADDR    0x10000
 #define BAHAMA_SLAVE_ID_FM_REG 0x02
 #define FM_GPIO	83
 #define BT_PCM_BCLK_MODE  0x88
@@ -138,7 +139,7 @@ static struct msm_i2c_platform_data msm_gsbi1_qup_i2c_pdata = {
 #define MSM_ION_AUDIO_SIZE	(MSM_PMEM_AUDIO_SIZE + PMEM_KERNEL_EBI1_SIZE)
 #define MSM_ION_CAMERA_SIZE	MSM_PMEM_ADSP_SIZE
 #define MSM_ION_SF_SIZE		MSM_PMEM_MDP_SIZE
-#define MSM_ION_HEAP_NUM	4
+#define MSM_ION_HEAP_NUM	5
 #ifdef CONFIG_ION_MSM
 static struct platform_device ion_dev;
 static int msm_ion_camera_size_carving;
@@ -673,7 +674,7 @@ static void fix_sizes(void)
 		pmem_adsp_size = CAMERA_ZSL_SIZE;
 #ifdef CONFIG_ION_MSM
 	msm_ion_camera_size = pmem_adsp_size;
-	msm_ion_audio_size = (MSM_PMEM_AUDIO_SIZE + PMEM_KERNEL_EBI1_SIZE);
+	msm_ion_audio_size = MSM_PMEM_AUDIO_SIZE;
 #ifdef CONFIG_CMA
 	msm_ion_camera_size_carving = 0;
 #else
@@ -730,7 +731,7 @@ struct ion_platform_heap qrd7627a_heaps[] = {
 			.extra_data = (void *)&co_mm_ion_pdata,
 			.priv = (void *)&ion_cma_device.dev,
 		},
-		/* PMEM_AUDIO */
+		/* AUDIO HEAP 1*/
 		{
 			.id	= ION_AUDIO_HEAP_ID,
 			.type	= ION_HEAP_TYPE_CARVEOUT,
@@ -739,6 +740,15 @@ struct ion_platform_heap qrd7627a_heaps[] = {
 			.memory_type = ION_EBI_TYPE,
 			.has_outer_cache = 1,
 			.extra_data = (void *)&co_ion_pdata,
+		},
+		/* AUDIO HEAP 2*/
+		{
+			.id    = ION_AUDIO_HEAP_BL_ID,
+			.type  = ION_HEAP_TYPE_CARVEOUT,
+			.name  = ION_AUDIO_BL_HEAP_NAME,
+			.memory_type = ION_EBI_TYPE,
+			.extra_data = (void *)&co_ion_pdata,
+			.base = BOOTLOADER_BASE_ADDR,
 		},
 		/* PMEM_MDP = SF */
 		{
@@ -823,7 +833,7 @@ static void __init reserve_pmem_memory(void)
 static void __init reserve_ion_memory(void)
 {
 #if defined(CONFIG_ION_MSM) && defined(CONFIG_MSM_MULTIMEDIA_USE_ION)
-	msm7627a_reserve_table[MEMTYPE_EBI1].size += MSM_ION_AUDIO_SIZE;
+	msm7627a_reserve_table[MEMTYPE_EBI1].size += PMEM_KERNEL_EBI1_SIZE;
 	msm7627a_reserve_table[MEMTYPE_EBI1].size += MSM_ION_SF_SIZE;
 	msm7627a_reserve_table[MEMTYPE_EBI1].size +=
 		msm_ion_camera_size_carving;
@@ -851,8 +861,9 @@ static struct reserve_info msm7627a_reserve_info __initdata = {
 static void __init msm7627a_reserve(void)
 {
 	reserve_info = &msm7627a_reserve_info;
+	memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
+	memblock_remove(BOOTLOADER_BASE_ADDR, msm_ion_audio_size);
 	msm_reserve();
-	memblock_remove(MSM8625_WARM_BOOT_PHYS, SZ_32);
 #ifdef CONFIG_CMA
 	dma_declare_contiguous(
 			&ion_cma_device.dev,
