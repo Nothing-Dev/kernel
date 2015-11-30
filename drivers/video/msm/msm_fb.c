@@ -127,8 +127,12 @@ static int msm_fb_pan_idle(struct msm_fb_data_type *mfd);
 #define MSM_FB_MAX_DBGFS 1024
 #define MAX_BACKLIGHT_BRIGHTNESS 255
 
-/* 100 ms for time out */
-#define WAIT_FENCE_TIMEOUT 100
+#define WAIT_FENCE_FIRST_TIMEOUT (3 * MSEC_PER_SEC)
+#define WAIT_FENCE_FINAL_TIMEOUT (10 * MSEC_PER_SEC)
+/* Display op timeout should be greater than total timeout */
+#define WAIT_DISP_OP_TIMEOUT (WAIT_FENCE_FIRST_TIMEOUT +\
+        WAIT_FENCE_FINAL_TIMEOUT) * MDP_MAX_FENCE_FD
+#define MAX_TIMELINE_NAME_LEN 16
 
 int msm_fb_debugfs_file_index;
 struct dentry *msm_fb_debugfs_root;
@@ -1808,7 +1812,6 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 static int msm_fb_open(struct fb_info *info, int user)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
-	bool unblank = true;
 	int result;
 
 	result = pm_runtime_get_sync(info->dev);
@@ -1830,16 +1833,9 @@ static int msm_fb_open(struct fb_info *info, int user)
 			pr_debug("%s:%d no mdp_set_dma_pan_info %d\n",
 				__func__, __LINE__, info->node);
 
-		if (mfd->is_panel_ready && !mfd->is_panel_ready())
-			unblank = false;
-
-		if (unblank) {
-			if (msm_fb_blank_sub(FB_BLANK_UNBLANK,
-				info, TRUE)) {
-				MSM_FB_ERR("%s: can't turn on display!\n",
-					__func__);
-				return -EPERM;
-			}
+		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, TRUE)) {
+			printk(KERN_ERR "msm_fb_open: can't turn on display!\n");
+			return -1;
 		}
 	}
 
