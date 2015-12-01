@@ -2470,20 +2470,13 @@ struct ion_platform_heap msm7x27a_heaps[] = {
 			.extra_data = (void *)&co_ion_pdata,
 		},
 #endif
-	}
 };
-#endif
 
-/**
- * These heaps are listed in the order they will be allocated.
- * Don't swap the order unless you know what you are doing!
- */
-struct ion_platform_heap msm7x27a_heaps[] = {
-		{
-			.id	= ION_SYSTEM_HEAP_ID,
-			.type	= ION_HEAP_TYPE_SYSTEM,
-			.name	= ION_VMALLOC_HEAP_NAME,
-		},
+static struct ion_platform_data ion_pdata = {
+	.nr = MSM_ION_HEAP_NUM,
+	.has_outer_cache = 1,
+	.heaps = msm7x27a_heaps,
+};
 
 static struct platform_device ion_dev = {
 	.name = "ion-msm",
@@ -2606,7 +2599,7 @@ static void __init msm7x27a_reserve(void)
 static void __init msm8625_reserve(void)
 {
 	msm7x27a_reserve();
-	memblock_remove(MSM8625_SECONDARY_PHYS, SZ_8);
+	memblock_remove(MSM8625_CPU_PHYS, SZ_8);
 	memblock_remove(MSM8625_WARM_BOOT_PHYS, SZ_32);
 	memblock_remove(MSM8625_NON_CACHE_MEM, SZ_2K);
 }
