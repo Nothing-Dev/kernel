@@ -494,9 +494,21 @@ static int msm_fb_probe(struct platform_device *pdev)
 	if (!msm_fb_resource_initialized)
 		return -EPERM;
 
-#ifdef CONFIG_APPLY_GA_SOLUTION
-	/* Mark for GetLog */
+/*#ifdef CONFIG_APPLY_GA_SOLUTION
+	 Mark for GetLog 
 	frame_buf_mark.p_fb = fbram_phys;
+
+struct struct_frame_buf_mark {
+	u32 special_mark_1;
+	u32 special_mark_2;
+	u32 special_mark_3;
+	u32 special_mark_4;
+	void *p_fb;
+	u32 resX;
+	u32 resY;
+	u32 bpp;    //color depth : 16 or 24
+	u32 frames; // frame buffer count : 2
+};
 
 static struct struct_frame_buf_mark  frame_buf_mark = {
 	.special_mark_1 = (('*' << 24) | ('^' << 16) | ('^' << 8) | ('*' << 0)),
@@ -515,7 +527,7 @@ static struct struct_frame_buf_mark  frame_buf_mark = {
 #endif
 	.frames = 2
 };
-#endif
+#endif */
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
@@ -1100,7 +1112,7 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			msleep(16);
 			ret = pdata->off(mfd->pdev);
 			if (ret)
-				mfd->panel_power_on = curr_pwr_state;=
+				mfd->panel_power_on = curr_pwr_state;
 
 			msm_fb_release_timeline(mfd);
 			mfd->op_enable = TRUE;
@@ -3881,6 +3893,7 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 #endif
 	struct mdp_page_protection fb_page_protection;
 	struct msmfb_mdp_pp mdp_pp;
+        struct msmfb_metadata mdp_metadata;
         struct mdp_buf_sync buf_sync;
 	int ret = 0;
 

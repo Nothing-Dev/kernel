@@ -40,6 +40,55 @@
 extern int read_recovery;
 #endif
 
+#ifdef ULPS_IMPLEMENTATION
+#define ULPS_REQUEST_BITS			0x001f
+#define ULPS_EXIT_BITS				0x1f00
+#define ULPS_LANE_STATUS_BITS	0x1f00
+#define CTRL_OFFSET						0xA8
+#define STATUS_OFFSET					0xA4
+#define READ_ULPS_STATUS(x)		(MIPI_INP(MIPI_DSI_BASE + STATUS_OFFSET) & x)
+static int mipi_ulps_mode(int enter)
+{
+	uint32_t dsi0LaneCtrlReg = MIPI_INP(MIPI_DSI_BASE + CTRL_OFFSET);
+	uint32_t dsi0LaneStatusReg = MIPI_INP(MIPI_DSI_BASE + STATUS_OFFSET);
+
+	printk("### mipi_ulps_mode++: dsi0LaneStatusReg 0x%x\n", dsi0LaneStatusReg);
+
+	if(enter) //enter into the mode
+	{
+		MIPI_OUTP(MIPI_DSI_BASE + CTRL_OFFSET, dsi0LaneCtrlReg | ULPS_REQUEST_BITS);
+		usleep(1000);
+		printk("### entering into the ulps mode\n");
+			
+	}
+	else //exit from the mode
+	{
+		
+		MIPI_OUTP(MIPI_DSI_BASE + CTRL_OFFSET, dsi0LaneCtrlReg | ULPS_EXIT_BITS);
+		
+		printk("### exiting from the ulps mode\n");
+		usleep(10000);
+
+		//Exit/ request bits clear (requirement)
+		dsi0LaneCtrlReg = MIPI_INP(MIPI_DSI_BASE + CTRL_OFFSET);
+		dsi0LaneCtrlReg &= ~ULPS_REQUEST_BITS;
+		MIPI_OUTP(MIPI_DSI_BASE + CTRL_OFFSET, dsi0LaneCtrlReg);
+		usleep(10000);
+		dsi0LaneCtrlReg &= ~ULPS_EXIT_BITS;
+		MIPI_OUTP(MIPI_DSI_BASE + CTRL_OFFSET, dsi0LaneCtrlReg);
+		usleep(10000);
+	}
+
+#undef ULPS_REQUEST_BITS
+#undef ULPS_EXIT_BITS
+#undef ULPS_LANE_STATUS_BITS
+#undef CTRL_OFFSET 
+#undef STATUS_OFFSET
+
+	return true;
+}
+#endif //ULPS_IMPLEMENTATION
+
 u32 dsi_irq;
 u32 esc_byte_ratio;
 
@@ -348,6 +397,8 @@ RETRY_MIPI_DSI_ON:
 #if defined(CONFIG_FB_MSM_MIPI_HX8369B_WVGA_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_NT35510_CMD_WVGA_PT_PANEL) || defined(CONFIG_FB_MSM_MIPI_HX8357_CMD_SMD_HVGA_PT_PANEL)
 	mipi_dsi_op_mode_config(mipi->mode); // call this function before panel_next_on 
 #endif
+#ifdef CONFIG_FB_MSM_MIPI_HX8369B_WVGA_PT_PANEL
+	ret = panel_next_on(pdev);
 
 	if(!ret && retry_count > 0) {
 		retry_count--;
@@ -363,7 +414,7 @@ RETRY_MIPI_DSI_ON:
 
 	ret = 0;
 #else
-		if (mfd->op_enable)
+	if (mfd->op_enable)
 		ret = panel_next_on(pdev);
 #endif
 #if !defined(CONFIG_FB_MSM_MIPI_HX8369B_WVGA_PT_PANEL) && !defined(CONFIG_FB_MSM_MIPI_NT35510_CMD_WVGA_PT_PANEL) && !defined(CONFIG_FB_MSM_MIPI_HX8357_CMD_SMD_HVGA_PT_PANEL)
