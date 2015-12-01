@@ -340,7 +340,7 @@ static ssize_t msm_fb_msm_fb_type(struct device *dev,
 		ret = snprintf(buf, PAGE_SIZE, "writeback panel\n");
 		break;
 	default:
-		ret = snprintf(buf,< PAGE_SIZE, "unknown panel\n");
+		ret = snprintf(buf, PAGE_SIZE, "unknown panel\n");
 		break;
 	}
 
@@ -497,6 +497,24 @@ static int msm_fb_probe(struct platform_device *pdev)
 #ifdef CONFIG_APPLY_GA_SOLUTION
 	/* Mark for GetLog */
 	frame_buf_mark.p_fb = fbram_phys;
+
+static struct struct_frame_buf_mark  frame_buf_mark = {
+	.special_mark_1 = (('*' << 24) | ('^' << 16) | ('^' << 8) | ('*' << 0)),
+	.special_mark_2 = (('I' << 24) | ('n' << 16) | ('f' << 8) | ('o' << 0)),
+	.special_mark_3 = (('H' << 24) | ('e' << 16) | ('r' << 8) | ('e' << 0)),
+	.special_mark_4 = (('f' << 24) | ('b' << 16) | ('u' << 8) | ('f' << 0)),
+	.p_fb   = 0,
+#if 	1
+	.resX	= 256,
+	.resY	= 320,
+	.bpp	= 18,
+#else
+	.resX   = 320,
+	.resY   = 480,
+	.bpp    = 24,
+#endif
+	.frames = 2
+};
 #endif
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
