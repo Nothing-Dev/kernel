@@ -527,7 +527,7 @@ struct mdp_buf_sync {
 	uint32_t acq_fen_fd_cnt;
 	int *acq_fen_fd;
 	int *rel_fen_fd;
-	int *retire<_fen_fd;
+	int *retire_fen_fd;
 };
 
 #ifdef CONFIG_FB_AUTO_CABC
